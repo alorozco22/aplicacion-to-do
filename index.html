@@ -119,6 +119,16 @@
       background: rgba(99, 132, 255, 0.05);
     }
 
+    .task-item[draggable='true'] {
+      cursor: grab;
+    }
+
+    .task-item.dragging {
+      opacity: 0.35;
+      background: rgba(99, 132, 255, 0.08);
+      box-shadow: inset 2px 0 0 #6384ff;
+    }
+
     .task-bullet {
       flex-shrink: 0;
       width: 22px;
@@ -323,6 +333,10 @@
       tasks.forEach((task, index) => {
         const li = document.createElement('li');
         li.className = 'task-item' + (task.completed ? ' completed' : '');
+        li.draggable = true;
+        li.dataset.index = index;
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragend', handleDragEnd);
 
         const bullet = document.createElement('div');
         bullet.className = 'task-bullet';
@@ -417,6 +431,41 @@
       renderTasks();
     }
 
+    function handleDragStart(e) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+      requestAnimationFrame(() => this.classList.add('dragging'));
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const list = document.getElementById('taskList');
+      const dragging = list.querySelector('.task-item.dragging');
+      if (!dragging) return;
+      const siblings = [...list.querySelectorAll('.task-item:not(.dragging)')];
+      const next = siblings.find((el) => {
+        const rect = el.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      });
+      if (next) {
+        list.insertBefore(dragging, next);
+      } else {
+        list.appendChild(dragging);
+      }
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+      const list = document.getElementById('taskList');
+      const items = [...list.querySelectorAll('.task-item')];
+      if (items.length === 0) return;
+      const oldTasks = getTasks();
+      saveTasks(items.map((el) => oldTasks[Number(el.dataset.index)]));
+      renderTasks();
+    }
+
+    document.getElementById('taskList').addEventListener('dragover', handleDragOver);
     document.getElementById('addTaskBtn').addEventListener('click', addTask);
     document.getElementById('newTaskInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addTask();
