@@ -278,6 +278,45 @@
       transform: translateY(0);
     }
 
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border-bottom: 1px solid rgba(99, 132, 255, 0.1);
+    }
+
+    .toolbar .spacer {
+      flex: 1;
+    }
+
+    .toolbar button {
+      font-family: 'Space Mono', 'Courier New', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      background: rgba(99, 132, 255, 0.06);
+      color: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(99, 132, 255, 0.25);
+      border-radius: 5px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .toolbar button:hover {
+      color: #fff;
+      border-color: rgba(99, 132, 255, 0.6);
+      background: rgba(99, 132, 255, 0.15);
+      box-shadow: 0 0 12px rgba(99, 132, 255, 0.2);
+    }
+
+    .toolbar button.danger:hover {
+      color: #ff6b6b;
+      border-color: rgba(255, 107, 107, 0.5);
+      background: rgba(255, 107, 107, 0.08);
+      box-shadow: 0 0 12px rgba(255, 107, 107, 0.15);
+    }
+
     .empty-state {
       text-align: center;
       padding: 48px 24px;
@@ -295,6 +334,13 @@
       <div class="ring"></div>
       <div class="ring"></div>
       <h1>TO DO LIST</h1>
+    </div>
+    <div class="toolbar">
+      <button id="exportBtn" title="Export tasks to a JSON file">Export</button>
+      <button id="importBtn" title="Import tasks from a JSON file">Import</button>
+      <div class="spacer"></div>
+      <button id="clearBtn" class="danger" title="Delete all tasks">Clear all</button>
+      <input type="file" id="importFileInput" accept=".json,application/json" hidden />
     </div>
     <div class="notepad-body">
       <ul class="task-list" id="taskList"></ul>
@@ -465,8 +511,59 @@
       renderTasks();
     }
 
+    function exportTasks() {
+      const tasks = getTasks();
+      if (tasks.length === 0) {
+        alert('No tasks to export.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'todo-tasks-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importTasks(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error('invalid');
+          const tasks = data
+            .filter((t) => t && typeof t.text === 'string')
+            .map((t) => ({ text: t.text, completed: Boolean(t.completed) }));
+          saveTasks(tasks);
+          renderTasks();
+        } catch {
+          alert('Invalid JSON file. Expected an array of { text, completed } objects.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllTasks() {
+      if (!confirm('Delete all tasks? This cannot be undone.')) return;
+      saveTasks([]);
+      renderTasks();
+    }
+
     document.getElementById('taskList').addEventListener('dragover', handleDragOver);
     document.getElementById('addTaskBtn').addEventListener('click', addTask);
+    document.getElementById('exportBtn').addEventListener('click', exportTasks);
+    document.getElementById('importBtn').addEventListener('click', () => {
+      document.getElementById('importFileInput').click();
+    });
+    document.getElementById('importFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) importTasks(file);
+      e.target.value = '';
+    });
+    document.getElementById('clearBtn').addEventListener('click', clearAllTasks);
     document.getElementById('newTaskInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addTask();
     });
