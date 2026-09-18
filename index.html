@@ -317,6 +317,26 @@
       box-shadow: 0 0 12px rgba(255, 107, 107, 0.15);
     }
 
+    .toolbar a {
+      font-family: 'Space Mono', 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 4px 10px;
+      background: rgba(53, 240, 255, 0.06);
+      color: rgba(233, 252, 253, 0.6);
+      border: 1px solid rgba(53, 240, 255, 0.28);
+      border-radius: 5px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .toolbar a:hover {
+      color: #fff;
+      border-color: rgba(53, 240, 255, 0.7);
+      background: rgba(53, 240, 255, 0.18);
+      box-shadow: 0 0 12px rgba(53, 240, 255, 0.25);
+    }
+
     .empty-state {
       text-align: center;
       padding: 48px 24px;
@@ -336,6 +356,7 @@
       <h1>TO DO LIST</h1>
     </div>
     <div class="toolbar">
+      <a href="star-trek.html" title="Open the Star Trek interface">Star Trek UI</a>
       <button id="exportBtn" title="Export tasks to a JSON file">Export</button>
       <button id="importBtn" title="Import tasks from a JSON file">Import</button>
       <div class="spacer"></div>

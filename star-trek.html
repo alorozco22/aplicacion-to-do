@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To Do List // LCARS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --cyan: #35f0ff;
+      --teal: #0fd6c0;
+      --teal-green: #28e6a0;
+      --amber: #ffb45e;
+      --red: #ff6166;
+      --text: #e9fcfd;
+      --text-dim: rgba(233, 252, 253, 0.5);
+      --panel: rgba(6, 14, 24, 0.78);
+      --panel-2: rgba(10, 22, 34, 0.62);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      font-family: 'Chakra Petch', 'Space Mono', monospace;
+      padding: 40px 20px;
+      background: #0b0d17;
+      background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(11, 13, 23, 0.5) 0%,
+        rgba(11, 13, 23, 0.3) 40%,
+        rgba(11, 13, 23, 0.6) 100%
+      );
+      z-index: 0;
+    }
+
+    .notepad {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      background: var(--panel);
+      border-radius: 6px 34px 34px 6px;
+      border: 1px solid rgba(53, 240, 255, 0.22);
+      box-shadow:
+        0 0 46px rgba(53, 240, 255, 0.1),
+        0 8px 40px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(53, 240, 255, 0.04);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      overflow: hidden;
+    }
+
+    .lcars-top {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 14px 20px 0;
+      background: linear-gradient(180deg, rgba(53, 240, 255, 0.06), transparent);
+    }
+
+    .lcars-top .seg {
+      display: block;
+      height: 8px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .lcars-top .s1 {
+      width: 46px;
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(53, 240, 255, 0.55);
+    }
+
+    .lcars-top .s2 {
+      height: 4px;
+      width: 24px;
+      background: var(--teal);
+      box-shadow: 0 0 14px rgba(15, 214, 192, 0.5);
+    }
+
+    .lcars-top .s3 {
+      height: 14px;
+      width: 10px;
+      background: rgba(53, 240, 255, 0.5);
+      border-radius: 2px 10px 10px 2px;
+    }
+
+    .notepad-header {
+      padding: 10px 20px 12px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .title-chip {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #04151a;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      padding: 7px 18px;
+      border-radius: 3px 16px 16px 3px;
+      box-shadow: 0 0 28px rgba(53, 240, 255, 0.4);
+    }
+
+    .sys-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+    }
+
+    .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal-green);
+      box-shadow: 0 0 10px var(--teal-green);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .status-strip {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(53, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+    }
+
+    .status-strip .status-label {
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .status-strip .spacer {
+      flex: 1;
+    }
+
+    .readout {
+      color: var(--text-dim);
+    }
+
+    .readout b {
+      color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .readout.idle {
+      color: rgba(40, 230, 160, 0.65);
+    }
+
+    .readout.stardate {
+      animation: flicker 2.4s ease-in-out infinite;
+    }
+
+    .readout.stardate b {
+      color: var(--teal-green);
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+
+    .notepad-body {
+      padding: 8px 16px 10px;
+      min-height: 260px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .notepad-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .notepad-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .notepad-body::-webkit-scrollbar-thumb {
+      background: rgba(53, 240, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    .task-list {
+      list-style: none;
+      counter-reset: tsk;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .task-item {
+      counter-increment: tsk;
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 13px 44px 13px 15px;
+      border: 1px solid rgba(53, 240, 255, 0.16);
+      border-left: 3px solid var(--cyan);
+      border-radius: 3px 18px 18px 3px;
+      background-color: var(--panel-2);
+      background-image:
+        linear-gradient(var(--cyan), var(--cyan)) 12px 12px / 12px 2px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) 12px 12px / 2px 12px no-repeat,
+        linear-gradient(var(--teal-green), var(--teal-green)) calc(100% - 12px) calc(100% - 12px) / 16px 2px no-repeat,
+        linear-gradient(var(--teal-green), var(--teal-green)) calc(100% - 12px) calc(100% - 12px) / 2px 16px no-repeat,
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 3px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, background-color 0.2s;
+    }
+
+    .task-item::before {
+      content: "TSK-" counter(tsk, decimal-leading-zero);
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(53, 240, 255, 0.45);
+    }
+
+    .task-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(53, 240, 255, 0.4);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(53, 240, 255, 0.16);
+    }
+
+    .task-item[draggable='true'] {
+      cursor: grab;
+    }
+
+    .task-item.dragging {
+      opacity: 0.35;
+      background-color: rgba(53, 240, 255, 0.08);
+      border-color: var(--cyan);
+      box-shadow: inset 3px 0 0 var(--cyan), 0 0 24px rgba(53, 240, 255, 0.25);
+    }
+
+    .task-item.completed {
+      border-color: rgba(40, 230, 160, 0.28);
+      border-left-color: var(--teal-green);
+      background-color: rgba(9, 30, 26, 0.6);
+    }
+
+    .task-item.completed::before {
+      content: "TSK-" counter(tsk, decimal-leading-zero) "  //  COMPL";
+      color: rgba(40, 230, 160, 0.6);
+    }
+
+    .task-item.completed:hover {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(40, 230, 160, 0.12);
+    }
+
+    .task-bullet {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+      border: 1px solid rgba(53, 240, 255, 0.45);
+      clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+      background: rgba(53, 240, 255, 0.06);
+      filter: drop-shadow(0 0 6px rgba(53, 240, 255, 0.4));
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+    }
+
+    .task-bullet:hover {
+      border-color: var(--cyan);
+      background: rgba(53, 240, 255, 0.16);
+      filter: drop-shadow(0 0 10px rgba(53, 240, 255, 0.7));
+    }
+
+    .task-item.completed .task-bullet {
+      border-color: transparent;
+      background: radial-gradient(circle at 50% 50%, var(--teal-green), #0a9c75);
+      filter: drop-shadow(0 0 8px rgba(40, 230, 160, 0.7));
+    }
+
+    .task-item.completed .task-bullet::after {
+      content: '\2713';
+      color: #02130d;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .task-text {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .task-item.completed .task-text {
+      text-decoration: line-through;
+      color: rgba(40, 230, 160, 0.4);
+    }
+
+    .task-text-input {
+      flex: 1;
+      font-family: 'Chakra Petch', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      border: none;
+      border-bottom: 1px solid rgba(53, 240, 255, 0.5);
+      background: rgba(53, 240, 255, 0.06);
+      outline: none;
+      padding: 2px 4px;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 4px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .task-item:hover .task-actions {
+      opacity: 1;
+    }
+
+    .task-actions button {
+      background: rgba(53, 240, 255, 0.06);
+      border: 1px solid rgba(53, 240, 255, 0.25);
+      border-radius: 2px 10px 10px 2px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: rgba(233, 252, 253, 0.5);
+      padding: 3px 9px;
+      transition: all 0.2s;
+    }
+
+    .task-actions button:hover {
+      color: #fff;
+      background: rgba(53, 240, 255, 0.18);
+      border-color: var(--cyan);
+      box-shadow: 0 0 14px rgba(53, 240, 255, 0.35);
+    }
+
+    .task-actions button.delete-btn:hover {
+      color: var(--red);
+      border-color: rgba(255, 97, 102, 0.6);
+      background: rgba(255, 97, 102, 0.1);
+      box-shadow: none;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-top: 1px solid rgba(53, 240, 255, 0.14);
+      border-bottom: 1px solid rgba(53, 240, 255, 0.14);
+      background: rgba(4, 12, 20, 0.5);
+    }
+
+    .toolbar .spacer {
+      flex: 1;
+    }
+
+    .toolbar button,
+    .toolbar a {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 5px 12px;
+      background: rgba(53, 240, 255, 0.05);
+      color: rgba(233, 252, 253, 0.55);
+      border: 1px solid rgba(53, 240, 255, 0.22);
+      border-radius: 2px 12px 12px 2px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toolbar button:hover,
+    .toolbar a:hover {
+      color: #fff;
+      border-color: rgba(53, 240, 255, 0.7);
+      background: rgba(53, 240, 255, 0.15);
+      box-shadow: 0 0 16px rgba(53, 240, 255, 0.3);
+    }
+
+    .toolbar button.danger {
+      color: rgba(255, 180, 94, 0.7);
+      border-color: rgba(255, 180, 94, 0.28);
+    }
+
+    .toolbar button.danger:hover {
+      color: var(--amber);
+      border-color: rgba(255, 180, 94, 0.55);
+      background: rgba(255, 180, 94, 0.08);
+      box-shadow: none;
+    }
+
+    .add-task-area {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 18px 20px 22px;
+    }
+
+    .add-task-area input {
+      flex: 1;
+      font-family: 'Chakra Petch', monospace;
+      font-size: 14px;
+      padding: 12px 16px;
+      border: 1px solid rgba(53, 240, 255, 0.22);
+      border-bottom: 2px solid rgba(53, 240, 255, 0.4);
+      border-radius: 3px;
+      background: rgba(4, 12, 20, 0.55);
+      outline: none;
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .add-task-area input::placeholder {
+      color: rgba(233, 252, 253, 0.28);
+      letter-spacing: 1px;
+    }
+
+    .add-task-area input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 1px rgba(53, 240, 255, 0.35), 0 0 24px rgba(53, 240, 255, 0.18);
+    }
+
+    .add-task-area button {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 12px 26px;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      color: #03262b;
+      border: none;
+      border-radius: 3px 16px 16px 3px;
+      cursor: pointer;
+      box-shadow: 0 0 26px rgba(53, 240, 255, 0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .add-task-area button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 34px rgba(53, 240, 255, 0.5);
+    }
+
+    .add-task-area button:active {
+      transform: translateY(0);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 46px 24px;
+      color: rgba(233, 252, 253, 0.3);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-style: italic;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="notepad">
+    <div class="lcars-top" aria-hidden="true">
+      <span class="seg s1"></span>
+      <span class="seg s2"></span>
+      <span class="seg s3"></span>
+    </div>
+    <div class="notepad-header">
+      <div class="title-row">
+        <div class="title-chip">TO DO LIST</div>
+        <div class="sys-status">
+          <span class="led"></span>
+          SYS // ONLINE
+        </div>
+      </div>
+      <div class="status-strip">
+        <span class="status-label">// Mission Manifest</span>
+        <span class="spacer"></span>
+        <span class="readout" id="pendingReadout">TASKS PENDING: <b>0</b></span>
+        <span class="readout stardate">STARDATE <b id="stardate">0000.0</b></span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <a href="index.html" title="Switch to the standard interface">Standard UI</a>
+      <button id="exportBtn" title="Export tasks to a JSON file">Export</button>
+      <button id="importBtn" title="Import tasks from a JSON file">Import</button>
+      <div class="spacer"></div>
+      <button id="clearBtn" class="danger" title="Delete all tasks">Purge</button>
+      <input type="file" id="importFileInput" accept=".json,application/json" hidden />
+    </div>
+    <div class="notepad-body">
+      <ul class="task-list" id="taskList"></ul>
+    </div>
+    <div class="add-task-area">
+      <input type="text" id="newTaskInput" placeholder="Enter new task designation..." />
+      <button id="addTaskBtn">Add</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'todo-tasks';
+
+    function getTasks() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveTasks(tasks) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function getStardate() {
+      const now = new Date();
+      const doy =
+        Math.floor((now.getTime() - Date.UTC(now.getUTCFullYear(), 0, 0)) / 86400000) +
+        now.getUTCHours() / 24;
+      const stardate = 41153.716 + (now.getUTCFullYear() - 1987) * 1000 + (doy / 365.24) * 1000;
+      return stardate.toFixed(1);
+    }
+
+    function updateStatus() {
+      const tasks = getTasks();
+      const pending = tasks.filter((t) => !t.completed).length;
+      const readout = document.getElementById('pendingReadout');
+      if (pending > 0) {
+        readout.className = 'readout';
+        readout.innerHTML = 'TASKS PENDING: <b>' + pending + '</b>';
+      } else {
+        readout.className = 'readout idle';
+        readout.innerHTML = 'ALL TASKS ACQUIRED';
+      }
+      document.getElementById('stardate').textContent = getStardate();
+    }
+
+    function renderTasks() {
+      const tasks = getTasks();
+      const list = document.getElementById('taskList');
+      list.innerHTML = '';
+
+      if (tasks.length === 0) {
+        list.innerHTML = '<li class="empty-state">No tasks yet. Add one above, Commander.</li>';
+        updateStatus();
+        return;
+      }
+
+      tasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.className = 'task-item' + (task.completed ? ' completed' : '');
+        li.draggable = true;
+        li.dataset.index = index;
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragend', handleDragEnd);
+
+        const bullet = document.createElement('div');
+        bullet.className = 'task-bullet';
+        bullet.title = 'Toggle completed';
+        bullet.addEventListener('click', () => toggleTask(index));
+
+        const text = document.createElement('span');
+        text.className = 'task-text';
+        text.textContent = task.text;
+        text.addEventListener('dblclick', () => startEditing(index, li, task));
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '\u270E';
+        editBtn.title = 'Edit task';
+        editBtn.addEventListener('click', () => startEditing(index, li, task));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '\u2715';
+        deleteBtn.title = 'Delete task';
+        deleteBtn.addEventListener('click', () => deleteTask(index));
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(bullet);
+        li.appendChild(text);
+        li.appendChild(actions);
+        list.appendChild(li);
+      });
+
+      updateStatus();
+    }
+
+    function startEditing(index, li, task) {
+      const tasks = getTasks();
+      const textSpan = li.querySelector('.task-text');
+      if (!textSpan) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'task-text-input';
+      input.value = task.text;
+
+      function finishEdit() {
+        const newText = input.value.trim();
+        if (newText) {
+          tasks[index].text = newText;
+          saveTasks(tasks);
+        }
+        renderTasks();
+      }
+
+      input.addEventListener('blur', finishEdit);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') {
+          input.value = task.text;
+          input.blur();
+        }
+      });
+
+      textSpan.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    function addTask() {
+      const input = document.getElementById('newTaskInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const tasks = getTasks();
+      tasks.push({ text, completed: false });
+      saveTasks(tasks);
+      input.value = '';
+      renderTasks();
+    }
+
+    function toggleTask(index) {
+      const tasks = getTasks();
+      tasks[index].completed = !tasks[index].completed;
+      saveTasks(tasks);
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      const tasks = getTasks();
+      tasks.splice(index, 1);
+      saveTasks(tasks);
+      renderTasks();
+    }
+
+    function handleDragStart(e) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+      requestAnimationFrame(() => this.classList.add('dragging'));
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const list = document.getElementById('taskList');
+      const dragging = list.querySelector('.task-item.dragging');
+      if (!dragging) return;
+      const siblings = [...list.querySelectorAll('.task-item:not(.dragging)')];
+      const next = siblings.find((el) => {
+        const rect = el.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      });
+      if (next) {
+        list.insertBefore(dragging, next);
+      } else {
+        list.appendChild(dragging);
+      }
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+      const list = document.getElementById('taskList');
+      const items = [...list.querySelectorAll('.task-item')];
+      if (items.length === 0) return;
+      const oldTasks = getTasks();
+      saveTasks(items.map((el) => oldTasks[Number(el.dataset.index)]));
+      renderTasks();
+    }
+
+    function exportTasks() {
+      const tasks = getTasks();
+      if (tasks.length === 0) {
+        alert('No tasks to export.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'todo-tasks-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importTasks(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error('invalid');
+          const tasks = data
+            .filter((t) => t && typeof t.text === 'string')
+            .map((t) => ({ text: t.text, completed: Boolean(t.completed) }));
+          saveTasks(tasks);
+          renderTasks();
+        } catch {
+          alert('Invalid JSON file. Expected an array of { text, completed } objects.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllTasks() {
+      if (!confirm('Delete all tasks? This cannot be undone.')) return;
+      saveTasks([]);
+      renderTasks();
+    }
+
+    document.getElementById('taskList').addEventListener('dragover', handleDragOver);
+    document.getElementById('addTaskBtn').addEventListener('click', addTask);
+    document.getElementById('exportBtn').addEventListener('click', exportTasks);
+    document.getElementById('importBtn').addEventListener('click', () => {
+      document.getElementById('importFileInput').click();
+    });
+    document.getElementById('importFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) importTasks(file);
+      e.target.value = '';
+    });
+    document.getElementById('clearBtn').addEventListener('click', clearAllTasks);
+    document.getElementById('newTaskInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addTask();
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
