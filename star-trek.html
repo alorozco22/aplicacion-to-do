@@ -562,6 +562,72 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     }
 
+    const Sound = (() => {
+      let ctx = null;
+
+      function ac() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      }
+
+      function tone({ freq = 440, endFreq = null, type = 'sine', dur = 0.12, gain = 0.08, delay = 0 }) {
+        const c = ac();
+        const t0 = c.currentTime + delay;
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t0);
+        if (endFreq !== null) osc.frequency.exponentialRampToValueAtTime(endFreq, t0 + dur);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(g);
+        g.connect(c.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.02);
+      }
+
+      return {
+        toggle(completed) {
+          if (completed) {
+            tone({ freq: 660, endFreq: 880, type: 'triangle', dur: 0.09, gain: 0.07 });
+            tone({ freq: 990, type: 'triangle', dur: 0.08, gain: 0.05, delay: 0.06 });
+          } else {
+            tone({ freq: 520, endFreq: 340, type: 'triangle', dur: 0.1, gain: 0.06 });
+          }
+        },
+        add() {
+          tone({ freq: 520, type: 'sine', dur: 0.07, gain: 0.07 });
+          tone({ freq: 780, type: 'sine', dur: 0.09, gain: 0.06, delay: 0.06 });
+        },
+        delete() {
+          tone({ freq: 440, endFreq: 220, type: 'triangle', dur: 0.12, gain: 0.06 });
+        },
+        clear() {
+          tone({ freq: 440, endFreq: 140, type: 'sawtooth', dur: 0.35, gain: 0.025 });
+          tone({ freq: 220, endFreq: 70, type: 'sine', dur: 0.42, gain: 0.05, delay: 0.03 });
+        },
+        dragStart() {
+          tone({ freq: 600, endFreq: 720, type: 'sine', dur: 0.06, gain: 0.045 });
+        },
+        drop() {
+          tone({ freq: 500, type: 'square', dur: 0.05, gain: 0.035 });
+          tone({ freq: 760, type: 'square', dur: 0.06, gain: 0.035, delay: 0.05 });
+        },
+        edit() {
+          tone({ freq: 880, endFreq: 520, type: 'sine', dur: 0.08, gain: 0.045 });
+        },
+        data() {
+          tone({ freq: 600, type: 'sine', dur: 0.07, gain: 0.05 });
+          tone({ freq: 900, type: 'sine', dur: 0.09, gain: 0.04, delay: 0.08 });
+        },
+        hover() {
+          tone({ freq: 1200, type: 'sine', dur: 0.04, gain: 0.012 });
+        }
+      };
+    })();
+
     function getStardate() {
       const now = new Date();
       const doy =
@@ -608,6 +674,7 @@
         bullet.className = 'task-bullet';
         bullet.title = 'Toggle completed';
         bullet.addEventListener('click', () => toggleTask(index));
+        bullet.addEventListener('mouseenter', () => Sound.hover());
 
         const text = document.createElement('span');
         text.className = 'task-text';
@@ -645,6 +712,7 @@
       const textSpan = li.querySelector('.task-text');
       if (!textSpan) return;
 
+      Sound.edit();
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'task-text-input';
@@ -680,6 +748,7 @@
 
       const tasks = getTasks();
       tasks.push({ text, completed: false });
+      Sound.add();
       saveTasks(tasks);
       input.value = '';
       renderTasks();
@@ -688,6 +757,7 @@
     function toggleTask(index) {
       const tasks = getTasks();
       tasks[index].completed = !tasks[index].completed;
+      Sound.toggle(tasks[index].completed);
       saveTasks(tasks);
       renderTasks();
     }
@@ -695,11 +765,13 @@
     function deleteTask(index) {
       const tasks = getTasks();
       tasks.splice(index, 1);
+      Sound.delete();
       saveTasks(tasks);
       renderTasks();
     }
 
     function handleDragStart(e) {
+      Sound.dragStart();
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', '');
       requestAnimationFrame(() => this.classList.add('dragging'));
@@ -729,7 +801,9 @@
       const items = [...list.querySelectorAll('.task-item')];
       if (items.length === 0) return;
       const oldTasks = getTasks();
-      saveTasks(items.map((el) => oldTasks[Number(el.dataset.index)]));
+      const reordered = items.map((el) => oldTasks[Number(el.dataset.index)]);
+      if (JSON.stringify(reordered) !== JSON.stringify(oldTasks)) Sound.drop();
+      saveTasks(reordered);
       renderTasks();
     }
 
@@ -740,6 +814,7 @@
         return;
       }
       const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+      Sound.data();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -759,6 +834,7 @@
           const tasks = data
             .filter((t) => t && typeof t.text === 'string')
             .map((t) => ({ text: t.text, completed: Boolean(t.completed) }));
+          Sound.data();
           saveTasks(tasks);
           renderTasks();
         } catch {
@@ -770,6 +846,7 @@
 
     function clearAllTasks() {
       if (!confirm('Delete all tasks? This cannot be undone.')) return;
+      Sound.clear();
       saveTasks([]);
       renderTasks();
     }
@@ -788,6 +865,10 @@
     document.getElementById('clearBtn').addEventListener('click', clearAllTasks);
     document.getElementById('newTaskInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addTask();
+    });
+
+    document.querySelectorAll('.toolbar button, .toolbar a, #addTaskBtn').forEach((el) => {
+      el.addEventListener('mouseenter', () => Sound.hover());
     });
 
     renderTasks();
