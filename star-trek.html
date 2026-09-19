@@ -802,14 +802,14 @@
         const c = getAudioCtx();
         const master = c.createGain();
         master.gain.setValueAtTime(0.0001, c.currentTime);
-        master.gain.exponentialRampToValueAtTime(0.18, c.currentTime + 2.5);
+        master.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 2.5);
         master.connect(getMaster());
 
         const oscA = c.createOscillator();
         oscA.type = 'sine';
         oscA.frequency.value = 55;
         const gA = c.createGain();
-        gA.gain.value = 0.7;
+        gA.gain.value = 1;
         oscA.connect(gA);
         gA.connect(master);
 
@@ -829,22 +829,6 @@
         lfo.connect(lfoGain);
         lfoGain.connect(gB.gain);
 
-        const oscC = c.createOscillator();
-        oscC.type = 'sine';
-        oscC.frequency.value = 110;
-        const gC = c.createGain();
-        gC.gain.value = 0.5;
-        oscC.connect(gC);
-        gC.connect(master);
-
-        const oscD = c.createOscillator();
-        oscD.type = 'triangle';
-        oscD.frequency.value = 165;
-        const gD = c.createGain();
-        gD.gain.value = 0.16;
-        oscD.connect(gD);
-        gD.connect(master);
-
         const len = Math.floor(c.sampleRate * 3);
         const buffer = c.createBuffer(1, len, c.sampleRate);
         const data = buffer.getChannelData(0);
@@ -854,7 +838,7 @@
         noise.loop = true;
         const nFilter = c.createBiquadFilter();
         nFilter.type = 'lowpass';
-        nFilter.frequency.value = 950;
+        nFilter.frequency.value = 260;
         const nGain = c.createGain();
         nGain.gain.value = 0.3;
         noise.connect(nFilter);
@@ -863,11 +847,9 @@
 
         oscA.start();
         oscB.start();
-        oscC.start();
-        oscD.start();
         lfo.start();
         noise.start();
-        nodes = { master, oscA, oscB, oscC, oscD, lfo, noise };
+        nodes = { master, oscA, oscB, lfo, noise };
         on = true;
         sync();
       }
@@ -884,8 +866,6 @@
           try {
             keep.oscA.stop();
             keep.oscB.stop();
-            keep.oscC.stop();
-            keep.oscD.stop();
             keep.lfo.stop();
             keep.noise.stop();
             keep.master.disconnect();
