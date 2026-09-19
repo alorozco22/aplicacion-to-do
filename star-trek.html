@@ -32,11 +32,22 @@
       min-height: 100vh;
       font-family: 'Chakra Petch', 'Space Mono', monospace;
       padding: 40px 20px;
-      background: #0b0d17;
-      background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1920&q=80');
+      background: #04060f;
+      background-image:
+        radial-gradient(ellipse 90% 70% at 50% 42%, rgba(20, 60, 90, 0.28), rgba(4, 6, 15, 0.92) 72%),
+        linear-gradient(180deg, #04060f, #060b18);
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
+    }
+
+    #starfield {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
     }
 
     body::before {
@@ -49,12 +60,12 @@
         rgba(11, 13, 23, 0.3) 40%,
         rgba(11, 13, 23, 0.6) 100%
       );
-      z-index: 0;
+      z-index: 1;
     }
 
     .notepad {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       width: 100%;
       max-width: 560px;
       background: var(--panel);
@@ -128,7 +139,7 @@
     }
 
     .sys-status {
-      margin-left: auto;
+      margin-left: 12px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -136,6 +147,17 @@
       font-size: 10px;
       letter-spacing: 2px;
       color: var(--text-dim);
+      transition: color 0.3s;
+    }
+
+    .sys-status.offline {
+      color: var(--amber);
+    }
+
+    .sys-status.offline .led {
+      background: var(--amber);
+      box-shadow: 0 0 12px var(--amber);
+      animation: none;
     }
 
     .led {
@@ -150,6 +172,65 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.35; }
+    }
+
+    .timer-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .timer-btn {
+      position: relative;
+      overflow: hidden;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      padding: 6px 10px;
+      background: rgba(53, 240, 255, 0.05);
+      color: rgba(233, 252, 253, 0.65);
+      border: 1px solid rgba(53, 240, 255, 0.22);
+      border-radius: 2px 10px 10px 2px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .timer-btn:hover {
+      color: #fff;
+      border-color: rgba(53, 240, 255, 0.6);
+      background: rgba(53, 240, 255, 0.14);
+      box-shadow: 0 0 12px rgba(53, 240, 255, 0.25);
+    }
+
+    #timerRunBtn {
+      min-width: 64px;
+    }
+
+    .timer-progress {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2px;
+      width: 100%;
+      background: var(--cyan);
+      transform-origin: left center;
+      transform: scaleX(1);
+      transition: transform 0.4s linear;
+    }
+
+    .timer-chip.break .timer-btn {
+      color: var(--amber);
+      border-color: rgba(255, 180, 94, 0.35);
+    }
+
+    .timer-chip.break .timer-btn:hover {
+      background: rgba(255, 180, 94, 0.1);
+    }
+
+    .timer-chip.break .timer-progress {
+      background: var(--amber);
     }
 
     .status-strip {
@@ -441,6 +522,17 @@
       box-shadow: none;
     }
 
+    .toolbar button.ambience {
+      border-radius: 2px 12px 12px 2px;
+    }
+
+    .toolbar button.ambience.on {
+      color: var(--teal-green);
+      border-color: rgba(40, 230, 160, 0.55);
+      background: rgba(40, 230, 160, 0.12);
+      box-shadow: 0 0 16px rgba(40, 230, 160, 0.3);
+    }
+
     .add-task-area {
       display: flex;
       gap: 10px;
@@ -509,6 +601,7 @@
   </style>
 </head>
 <body>
+  <canvas id="starfield" aria-hidden="true"></canvas>
   <div class="notepad">
     <div class="lcars-top" aria-hidden="true">
       <span class="seg s1"></span>
@@ -518,9 +611,16 @@
     <div class="notepad-header">
       <div class="title-row">
         <div class="title-chip">TO DO LIST</div>
-        <div class="sys-status">
+        <div class="timer-chip" id="timerChip">
+          <button class="timer-btn" id="timerModeBtn" title="Switch focus/break mode (25:10 / 15:5 / 5:2)"></button>
+          <button class="timer-btn" id="timerRunBtn" title="Start / pause the timer">
+            <span id="timerRunVal">25:00</span>
+            <span class="timer-progress" id="timerProgress" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="sys-status" id="sysStatus">
           <span class="led"></span>
-          SYS // ONLINE
+          <span id="sysStatusText">SYS // ONLINE</span>
         </div>
       </div>
       <div class="status-strip">
@@ -535,6 +635,7 @@
       <button id="exportBtn" title="Export tasks to a JSON file">Export</button>
       <button id="importBtn" title="Import tasks from a JSON file">Import</button>
       <div class="spacer"></div>
+      <button id="ambienceBtn" class="ambience" title="Toggle the warp-hum ambience sound">Ambience</button>
       <button id="clearBtn" class="danger" title="Delete all tasks">Purge</button>
       <input type="file" id="importFileInput" accept=".json,application/json" hidden />
     </div>
@@ -562,13 +663,16 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     }
 
-    const Sound = (() => {
-      let ctx = null;
+    let audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
 
+    const Sound = (() => {
       function ac() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended') ctx.resume();
-        return ctx;
+        return getAudioCtx();
       }
 
       function tone({ freq = 440, endFreq = null, type = 'sine', dur = 0.12, gain = 0.08, delay = 0 }) {
@@ -622,8 +726,329 @@
           tone({ freq: 600, type: 'sine', dur: 0.07, gain: 0.05 });
           tone({ freq: 900, type: 'sine', dur: 0.09, gain: 0.04, delay: 0.08 });
         },
+        breakStart() {
+          tone({ freq: 440, endFreq: 660, type: 'triangle', dur: 0.12, gain: 0.06 });
+          tone({ freq: 660, endFreq: 880, type: 'triangle', dur: 0.14, gain: 0.06, delay: 0.13 });
+        },
+        breakEnd() {
+          tone({ freq: 660, type: 'sine', dur: 0.09, gain: 0.06 });
+          tone({ freq: 880, type: 'sine', dur: 0.09, gain: 0.05, delay: 0.09 });
+          tone({ freq: 1100, type: 'sine', dur: 0.12, gain: 0.05, delay: 0.18 });
+        },
         hover() {
           tone({ freq: 1200, type: 'sine', dur: 0.04, gain: 0.012 });
+        }
+      };
+    })();
+
+    const Ambience = (() => {
+      let nodes = null;
+      let on = false;
+
+      function start() {
+        if (on) return;
+        const c = getAudioCtx();
+        const master = c.createGain();
+        master.gain.setValueAtTime(0.0001, c.currentTime);
+        master.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 2.5);
+        master.connect(c.destination);
+
+        const oscA = c.createOscillator();
+        oscA.type = 'sine';
+        oscA.frequency.value = 55;
+        const gA = c.createGain();
+        gA.gain.value = 1;
+        oscA.connect(gA);
+        gA.connect(master);
+
+        const oscB = c.createOscillator();
+        oscB.type = 'sine';
+        oscB.frequency.value = 62;
+        const gB = c.createGain();
+        gB.gain.value = 0.4;
+        oscB.connect(gB);
+        gB.connect(master);
+
+        const lfo = c.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.08;
+        const lfoGain = c.createGain();
+        lfoGain.gain.value = 0.2;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gB.gain);
+
+        const len = Math.floor(c.sampleRate * 3);
+        const buffer = c.createBuffer(1, len, c.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        const noise = c.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+        const nFilter = c.createBiquadFilter();
+        nFilter.type = 'lowpass';
+        nFilter.frequency.value = 260;
+        const nGain = c.createGain();
+        nGain.gain.value = 0.3;
+        noise.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(master);
+
+        oscA.start();
+        oscB.start();
+        lfo.start();
+        noise.start();
+        nodes = { master, oscA, oscB, lfo, noise };
+        on = true;
+      }
+
+      function stop() {
+        if (!on || !nodes) return;
+        const c = getAudioCtx();
+        const t = c.currentTime;
+        nodes.master.gain.cancelScheduledValues(t);
+        nodes.master.gain.setValueAtTime(nodes.master.gain.value, t);
+        nodes.master.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+        const keep = nodes;
+        setTimeout(() => {
+          try {
+            keep.oscA.stop();
+            keep.oscB.stop();
+            keep.lfo.stop();
+            keep.noise.stop();
+            keep.master.disconnect();
+          } catch {}
+        }, 1000);
+        nodes = null;
+        on = false;
+      }
+
+      return {
+        start,
+        stop,
+        get isOn() {
+          return on;
+        }
+      };
+    })();
+
+    const Timer = (() => {
+      const MODES = [
+        { label: '25:10', work: 25, rest: 10 },
+        { label: '15:5', work: 15, rest: 5 },
+        { label: '5:2', work: 5, rest: 2 }
+      ];
+      let modeIdx = 0;
+      let phase = 'work';
+      let running = false;
+      let remaining = 0;
+      let phaseEnd = 0;
+      let tickId = null;
+
+      const modeBtn = document.getElementById('timerModeBtn');
+      const chip = document.getElementById('timerChip');
+      const runVal = document.getElementById('timerRunVal');
+      const progress = document.getElementById('timerProgress');
+      const sysStatus = document.getElementById('sysStatus');
+      const sysStatusText = document.getElementById('sysStatusText');
+
+      function phaseDuration() {
+        return (phase === 'work' ? MODES[modeIdx].work : MODES[modeIdx].rest) * 60000;
+      }
+
+      function fmt(ms) {
+        const total = Math.max(0, Math.round(ms / 1000));
+        const m = Math.floor(total / 60);
+        const s = total % 60;
+        return m + ':' + String(s).padStart(2, '0');
+      }
+
+      function setStatus() {
+        const offline = phase === 'break';
+        sysStatus.classList.toggle('offline', offline);
+        sysStatusText.textContent = offline ? 'SYS // OFFLINE' : 'SYS // ONLINE';
+      }
+
+      function refreshUI() {
+        modeBtn.textContent = MODES[modeIdx].label;
+        chip.classList.toggle('break', phase === 'break');
+        setStatus();
+        let shown = phaseDuration();
+        if (running) shown = Math.max(0, phaseEnd - Date.now());
+        else if (remaining > 0) shown = remaining;
+        runVal.textContent = (running ? '\u2016 ' : '\u25B6 ') + fmt(shown);
+        const frac = phaseDuration() ? Math.max(0, Math.min(1, shown / phaseDuration())) : 1;
+        progress.style.transform = 'scaleX(' + frac + ')';
+      }
+
+      function tick() {
+        if (phaseEnd - Date.now() <= 0) {
+          if (phase === 'work') {
+            phase = 'break';
+            Sound.breakStart();
+          } else {
+            phase = 'work';
+            Sound.breakEnd();
+          }
+          remaining = phaseDuration();
+          phaseEnd = Date.now() + remaining;
+          refreshUI();
+          return;
+        }
+        refreshUI();
+      }
+
+      return {
+        toggle() {
+          Sound.hover();
+          if (running) {
+            remaining = Math.max(0, phaseEnd - Date.now());
+            running = false;
+            clearInterval(tickId);
+            refreshUI();
+            return;
+          }
+          if (remaining <= 0) remaining = phaseDuration();
+          phaseEnd = Date.now() + remaining;
+          running = true;
+          clearInterval(tickId);
+          tickId = setInterval(tick, 250);
+          refreshUI();
+        },
+        cycleMode() {
+          modeIdx = (modeIdx + 1) % MODES.length;
+          phase = 'work';
+          running = false;
+          remaining = 0;
+          clearInterval(tickId);
+          Sound.edit();
+          refreshUI();
+        },
+        refreshUI
+      };
+    })();
+
+    const Starfield = (() => {
+      const canvas = document.getElementById('starfield');
+      const ctx = canvas.getContext('2d');
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let stars = [];
+      let W = 0;
+      let H = 0;
+      let warpT = 0;
+      let nextWarp = 18 + Math.random() * 20;
+      let lastTs = performance.now();
+
+      function spawn() {
+        return {
+          x: Math.random() * W,
+          y: Math.random() * H,
+          z: Math.random() * 0.9 + 0.15,
+          vx: (Math.random() - 0.5) * 7,
+          vy: (Math.random() - 0.5) * 5 + 0.6,
+          hue: Math.random()
+        };
+      }
+
+      function build() {
+        const count = Math.min(420, Math.floor((W * H) / 3800));
+        stars = [];
+        for (let i = 0; i < count; i++) stars.push(spawn());
+      }
+
+      function colorFor(s, a) {
+        if (s.hue < 0.18) return 'rgba(143, 216, 255, ' + a + ')';
+        if (s.hue < 0.24) return 'rgba(125, 255, 240, ' + a + ')';
+        return 'rgba(219, 239, 255, ' + a + ')';
+      }
+
+      function twinkle(s, now) {
+        return 0.5 + 0.5 * Math.sin(now / 1000 * (0.6 + s.z * 2.2) + s.x * 0.05 + s.y * 0.04);
+      }
+
+      function redraw() {
+        ctx.clearRect(0, 0, W, H);
+        const now = performance.now();
+        const dt = Math.min((now - lastTs) / 1000, 0.05);
+        lastTs = now;
+
+        if (!reduced) {
+          nextWarp -= dt;
+          if (nextWarp <= 0) {
+            nextWarp = 22 + Math.random() * 18;
+            warpT = 8;
+          }
+        }
+        let f = 0;
+        if (warpT > 0) {
+          warpT -= dt;
+          if (warpT > 5) f = 1 - (8 - warpT) / 3;
+          else if (warpT > 3) f = 1;
+          else f = warpT / 3;
+          if (f < 0) f = 0;
+        }
+
+        const cx = W / 2;
+        const cy = H * 0.45;
+
+        for (const s of stars) {
+          const tw = twinkle(s, now);
+          if (f > 0.03) {
+            const dx = s.x - cx;
+            const dy = s.y - cy;
+            const d = Math.hypot(dx, dy) || 1;
+            const speed = (30 + (1 - s.z) * 120) * s.z * f;
+            const px = s.x - (dx / d) * speed * dt * 60;
+            const py = s.y - (dy / d) * speed * dt * 60;
+            s.x -= (dx / d) * speed * dt * 60;
+            s.y -= (dy / d) * speed * dt * 60;
+            ctx.strokeStyle = colorFor(s, (0.4 + s.z * 0.5) * tw);
+            ctx.lineWidth = 0.6 + s.z;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(s.x, s.y);
+            ctx.stroke();
+          } else {
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            const size = 0.5 + s.z * 1.2;
+            ctx.fillStyle = colorFor(s, (0.25 + s.z * 0.55) * tw);
+            ctx.fillRect(s.x, s.y, size, size);
+          }
+          const m = 24;
+          if (s.x < -m) s.x = W + m;
+          else if (s.x > W + m) s.x = -m;
+          if (s.y < -m) s.y = H + m;
+          else if (s.y > H + m) s.y = -m;
+        }
+
+        requestAnimationFrame(redraw);
+      }
+
+      function drawStatic() {
+        ctx.clearRect(0, 0, W, H);
+        for (const s of stars) {
+          const size = 0.5 + s.z * 1.2;
+          ctx.fillStyle = colorFor(s, 0.35 + s.z * 0.5);
+          ctx.fillRect(s.x, s.y, size, size);
+        }
+      }
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        build();
+        if (reduced) drawStatic();
+      }
+
+      return {
+        init() {
+          resize();
+          window.addEventListener('resize', resize);
+          if (!reduced) requestAnimationFrame(redraw);
         }
       };
     })();
@@ -870,6 +1295,23 @@
     document.querySelectorAll('.toolbar button, .toolbar a, #addTaskBtn').forEach((el) => {
       el.addEventListener('mouseenter', () => Sound.hover());
     });
+
+    document.getElementById('timerModeBtn').addEventListener('click', Timer.cycleMode);
+    document.getElementById('timerRunBtn').addEventListener('click', Timer.toggle);
+    Timer.refreshUI();
+
+    const ambienceBtn = document.getElementById('ambienceBtn');
+    ambienceBtn.addEventListener('click', () => {
+      if (Ambience.isOn) {
+        Ambience.stop();
+        ambienceBtn.classList.remove('on');
+      } else {
+        Ambience.start();
+        ambienceBtn.classList.add('on');
+      }
+    });
+
+    Starfield.init();
 
     renderTasks();
   </script>
