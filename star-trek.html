@@ -67,7 +67,7 @@
       position: relative;
       z-index: 2;
       width: 100%;
-      max-width: 560px;
+      max-width: 620px;
       background: var(--panel);
       border-radius: 6px 34px 34px 6px;
       border: 1px solid rgba(53, 240, 255, 0.22);
@@ -474,9 +474,11 @@
 
     .toolbar {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
+      gap: 6px 6px;
       padding: 10px 20px;
+      row-gap: 8px;
       border-top: 1px solid rgba(53, 240, 255, 0.14);
       border-bottom: 1px solid rgba(53, 240, 255, 0.14);
       background: rgba(4, 12, 20, 0.5);
@@ -531,6 +533,33 @@
       border-color: rgba(40, 230, 160, 0.55);
       background: rgba(40, 230, 160, 0.12);
       box-shadow: 0 0 16px rgba(40, 230, 160, 0.3);
+    }
+
+    .vol {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 2px;
+    }
+
+    .vol-label,
+    .vol-val {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: rgba(233, 252, 253, 0.5);
+    }
+
+    .vol-val {
+      color: var(--cyan);
+      min-width: 20px;
+      text-align: right;
+    }
+
+    .vol input[type='range'] {
+      width: 56px;
+      accent-color: var(--teal-green);
+      cursor: pointer;
     }
 
     .add-task-area {
@@ -636,6 +665,11 @@
       <button id="importBtn" title="Import tasks from a JSON file">Import</button>
       <div class="spacer"></div>
       <button id="ambienceBtn" class="ambience" title="Toggle the warp-hum ambience sound">Ambience</button>
+      <div class="vol">
+        <span class="vol-label">VOL</span>
+        <input type="range" id="volumeSlider" min="0" max="100" step="1" aria-label="Master volume" />
+        <span class="vol-val" id="volumeVal"></span>
+      </div>
       <button id="clearBtn" class="danger" title="Delete all tasks">Purge</button>
       <input type="file" id="importFileInput" accept=".json,application/json" hidden />
     </div>
@@ -664,10 +698,23 @@
     }
 
     let audioCtx = null;
+    let masterGain = null;
+    let volume = parseFloat(localStorage.getItem('todo-volume'));
+    if (!(volume >= 0)) volume = 80;
+
     function getAudioCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.connect(audioCtx.destination);
+        masterGain.gain.value = volume === 0 ? 0 : Math.pow(volume / 100, 1.3);
+      }
       if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
+    }
+
+    function getMaster() {
+      return masterGain;
     }
 
     const Sound = (() => {
@@ -687,7 +734,7 @@
         g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
         osc.connect(g);
-        g.connect(c.destination);
+        g.connect(getMaster());
         osc.start(t0);
         osc.stop(t0 + dur + 0.02);
       }
@@ -755,14 +802,14 @@
         const c = getAudioCtx();
         const master = c.createGain();
         master.gain.setValueAtTime(0.0001, c.currentTime);
-        master.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 2.5);
-        master.connect(c.destination);
+        master.gain.exponentialRampToValueAtTime(0.18, c.currentTime + 2.5);
+        master.connect(getMaster());
 
         const oscA = c.createOscillator();
         oscA.type = 'sine';
         oscA.frequency.value = 55;
         const gA = c.createGain();
-        gA.gain.value = 1;
+        gA.gain.value = 0.7;
         oscA.connect(gA);
         gA.connect(master);
 
@@ -782,6 +829,22 @@
         lfo.connect(lfoGain);
         lfoGain.connect(gB.gain);
 
+        const oscC = c.createOscillator();
+        oscC.type = 'sine';
+        oscC.frequency.value = 110;
+        const gC = c.createGain();
+        gC.gain.value = 0.5;
+        oscC.connect(gC);
+        gC.connect(master);
+
+        const oscD = c.createOscillator();
+        oscD.type = 'triangle';
+        oscD.frequency.value = 165;
+        const gD = c.createGain();
+        gD.gain.value = 0.16;
+        oscD.connect(gD);
+        gD.connect(master);
+
         const len = Math.floor(c.sampleRate * 3);
         const buffer = c.createBuffer(1, len, c.sampleRate);
         const data = buffer.getChannelData(0);
@@ -791,7 +854,7 @@
         noise.loop = true;
         const nFilter = c.createBiquadFilter();
         nFilter.type = 'lowpass';
-        nFilter.frequency.value = 260;
+        nFilter.frequency.value = 950;
         const nGain = c.createGain();
         nGain.gain.value = 0.3;
         noise.connect(nFilter);
@@ -800,9 +863,11 @@
 
         oscA.start();
         oscB.start();
+        oscC.start();
+        oscD.start();
         lfo.start();
         noise.start();
-        nodes = { master, oscA, oscB, lfo, noise };
+        nodes = { master, oscA, oscB, oscC, oscD, lfo, noise };
         on = true;
         sync();
       }
@@ -819,6 +884,8 @@
           try {
             keep.oscA.stop();
             keep.oscB.stop();
+            keep.oscC.stop();
+            keep.oscD.stop();
             keep.lfo.stop();
             keep.noise.stop();
             keep.master.disconnect();
@@ -1320,6 +1387,25 @@
       if (Ambience.isOn) Ambience.stop();
       else Ambience.start();
     });
+
+    const volSlider = document.getElementById('volumeSlider');
+    const volVal = document.getElementById('volumeVal');
+
+    function applyVolume() {
+      const v = parseFloat(volSlider.value);
+      if (!(v >= 0)) return;
+      volume = v;
+      localStorage.setItem('todo-volume', String(v));
+      volVal.textContent = Math.round(v);
+      if (masterGain) {
+        const target = v === 0 ? 0 : Math.pow(v / 100, 1.3);
+        masterGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+      }
+    }
+
+    volSlider.value = volume;
+    volVal.textContent = Math.round(volume);
+    volSlider.addEventListener('input', applyVolume);
 
     Starfield.init();
 
